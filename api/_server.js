@@ -1723,6 +1723,16 @@ function cacheKey(id, conns) {
   const own = conns?.[id]?.refreshToken;
   return own ? `${id}:${own.slice(-16)}` : id;
 }
+function configReport() {
+  const repos = ghRepos();
+  return {
+    github: !env3("GITHUB_TOKEN") ? "no GITHUB_TOKEN" : repos.length === 0 ? `GITHUB_REPOS unusable, expected owner/repo, got ${JSON.stringify(env3("GITHUB_REPOS") ?? "")}` : `ready, ${repos.length} repo(s)`,
+    notion: oauthConfigured("notion") ? "ready via MCP" : env3("NOTION_TOKEN") ? "ready via HTTP" : "not authorised",
+    linear: oauthConfigured("linear") ? "ready via MCP" : env3("LINEAR_API_KEY") ? "ready via HTTP" : "not authorised",
+    google: googleConfigured() ? "ready" : "not authorised",
+    model: process.env.LLM_API_KEY ? "ready" : "no LLM_API_KEY"
+  };
+}
 async function gatherServer(ids, limit = 20, connections) {
   const results = await Promise.all(
     ids.map(async (id) => {
@@ -2030,7 +2040,8 @@ async function handle(req) {
           linear: Boolean(connections.linear ?? connectionFromEnv("linear"))
         },
         // True only when it is the visitor's own account rather than the owner's.
-        own: { notion: Boolean(connections.notion), linear: Boolean(connections.linear) }
+        own: { notion: Boolean(connections.notion), linear: Boolean(connections.linear) },
+        config: configReport()
       });
     }
     case "/api/compose": {

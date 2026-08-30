@@ -571,6 +571,32 @@ function cacheKey(id: SourceId, conns: Connections | undefined): string {
 /** Per-visitor MCP connections, read off their cookie. */
 export type Connections = Partial<Record<"notion" | "linear", Connection>>;
 
+/* Which sources are configured, and why not when they are not. Reports presence
+   and shape only, never values, so it is safe to serve publicly and is the
+   fastest way to tell a missing env var from a malformed one. */
+export function configReport(): Record<string, string> {
+  const repos = ghRepos();
+  return {
+    github: !env("GITHUB_TOKEN")
+      ? "no GITHUB_TOKEN"
+      : repos.length === 0
+        ? `GITHUB_REPOS unusable, expected owner/repo, got ${JSON.stringify(env("GITHUB_REPOS") ?? "")}`
+        : `ready, ${repos.length} repo(s)`,
+    notion: oauthConfigured("notion")
+      ? "ready via MCP"
+      : env("NOTION_TOKEN")
+        ? "ready via HTTP"
+        : "not authorised",
+    linear: oauthConfigured("linear")
+      ? "ready via MCP"
+      : env("LINEAR_API_KEY")
+        ? "ready via HTTP"
+        : "not authorised",
+    google: googleConfigured() ? "ready" : "not authorised",
+    model: process.env.LLM_API_KEY ? "ready" : "no LLM_API_KEY",
+  };
+}
+
 /* One source failing must never take the screen down, so every provider is
    settled independently. A configured source that errors is reported as an
    error rather than quietly swapped for demo data under a green dot. */

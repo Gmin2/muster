@@ -3,6 +3,7 @@ import type { ComposeRequest, SourceId, WriteAction } from "../lib/types";
 import { SOURCE_IDS } from "../lib/constants";
 import { composeServer, modelName } from "./compose";
 import { executeServer } from "./actions";
+import { configReport } from "./providers";
 import {
   authorizeUrl,
   connectionFromEnv,
@@ -80,6 +81,7 @@ export async function handle(req: HttpRequest): Promise<HttpResponse> {
         },
         // True only when it is the visitor's own account rather than the owner's.
         own: { notion: Boolean(connections.notion), linear: Boolean(connections.linear) },
+        config: configReport(),
       });
     }
 
