@@ -10,6 +10,7 @@ import {
   registerClient,
   type OAuthServer,
 } from "./mcp-oauth";
+import { installLocalPersistence } from "./persist";
 import {
   clearPending,
   parseCookies,
@@ -18,6 +19,8 @@ import {
   writeConnections,
   writePending,
 } from "./session";
+
+installLocalPersistence();
 
 /* One runtime-agnostic handler: a plain request in, a plain response out. The
    Vite dev middleware and the Vercel functions both wrap this, so there is

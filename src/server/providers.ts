@@ -395,32 +395,50 @@ async function fetchNotionMcp(limit: number, conn?: Connection): Promise<SourceI
   if (!oauthConfigured("notion", conn)) throw new Error("not authorised");
 
   const client = new McpClient(mcpUrl("notion"), accessTokenFor("notion", conn), "notion-mcp");
-  const tool = await client.resolveTool(["notion-search", "search", "notion_search"]);
-  if (!tool) throw new Error("notion MCP exposed no search tool");
 
+  /* notion-list-recent-pages is the right tool for "what needs me": it takes no
+     query and returns pages already ordered by how recently they were touched.
+     notion-search is the fallback, but it rejects an empty query, so it only
+     works with something to search for. */
+  const tool = await client.resolveTool([
+    "notion-list-recent-pages",
+    "notion-search",
+    "search",
+  ]);
+  if (!tool) throw new Error("notion MCP exposed no page listing tool");
+
+  const searching = tool.name.includes("search");
   const raw = await client.callWithSchema(tool, {
-    query: "",
-    query_type: "internal",
-    page_size: limit,
     limit,
+    page_size: limit,
+    ...(searching ? { query: "project", query_type: "internal" } : {}),
   });
 
   return unwrapList(raw)
+    .filter((r) => str(r.type, "page") === "page")
     .slice(0, limit)
     .map((r, i) => {
-      const updated = pick(r, "last_edited_time", "lastEditedTime", "updated_at") ||
-        new Date().toISOString();
+      /* The recent-pages tool returns no timestamps, only order, so ordering is
+         the signal and inventing dates would be a lie. Search does carry one,
+         so use it when it is there. */
+      const stamp = pick(r, "timestamp", "last_edited_time", "lastEditedTime");
+      const url = pick(r, "url", "href");
       return {
-        id: `notion-${pick(r, "id", "page_id") || i}`,
+        id: `notion-${pick(r, "id") || url || i}`,
         source: "notion" as const,
         kind: "page" as const,
         title: pick(r, "title", "name", "text") || "Untitled",
-        url: pick(r, "url", "href") || undefined,
+        url: url || undefined,
         state: "page",
-        updatedAt: updated,
-        ageDays: ageDays(updated),
+        updatedAt: stamp || new Date().toISOString(),
+        ageDays: stamp ? ageDays(stamp) : 0,
         labels: [],
-        meta: { via: "mcp" },
+        meta: {
+          via: "mcp",
+          // Position in Notion's own recency ordering, 1 being most recent.
+          recency: i + 1,
+          ...(stamp ? {} : { dated: false }),
+        },
       };
     });
 }

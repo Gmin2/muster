@@ -35,6 +35,27 @@ export function mcpUrl(server: OAuthServer): string {
 
 const cache = new Map<string, { token: string; expiresAt: number }>();
 
+/* Notion and Linear rotate refresh tokens: every refresh mints a new one and
+   invalidates the old, and reusing a spent token is treated as theft and revokes
+   the whole chain. So the rotated value has to be captured and kept, or the
+   integration works exactly once and then dies.
+
+   In memory covers a warm process. Locally we also write it back to .env so a
+   restart does not burn the chain. On a stateless host neither is enough, which
+   is why `onRotate` exists for the caller that can actually persist it. */
+const rotated = new Map<string, string>();
+
+export function currentRefreshToken(server: OAuthServer, original: string): string {
+  return rotated.get(`${server}:${original.slice(-24)}`) ?? original;
+}
+
+type RotateHandler = (server: OAuthServer, next: Connection) => void;
+let onRotate: RotateHandler | null = null;
+
+export function setRotateHandler(handler: RotateHandler): void {
+  onRotate = handler;
+}
+
 /* A visitor who connected their own account, carried on their cookie. When
    present it wins over the owner's env credentials, which is what turns the
    deployed showcase into something a stranger can point at their own workspace. */
@@ -65,7 +86,8 @@ export function accessTokenFor(
     if (hit && Date.now() < hit.expiresAt) return hit.token;
 
     const clientId = conn.clientId;
-    const refresh = conn.refreshToken;
+    // Always send the newest token we hold, never the one we were handed.
+    const refresh = currentRefreshToken(server, conn.refreshToken);
 
     const body = new URLSearchParams({
       grant_type: "refresh_token",
@@ -86,7 +108,17 @@ export function accessTokenFor(
       throw new Error(`${server} token refresh ${res.status}: ${(await res.text()).slice(0, 160)}`);
     }
 
-    const data = (await res.json()) as { access_token: string; expires_in?: number };
+    const data = (await res.json()) as {
+      access_token: string;
+      expires_in?: number;
+      refresh_token?: string;
+    };
+
+    if (data.refresh_token && data.refresh_token !== refresh) {
+      rotated.set(`${server}:${conn.refreshToken.slice(-24)}`, data.refresh_token);
+      onRotate?.(server, { ...conn, refreshToken: data.refresh_token });
+    }
+
     cache.set(key, {
       token: data.access_token,
       expiresAt: Date.now() + ((data.expires_in ?? 3600) - 60) * 1000,
