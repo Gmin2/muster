@@ -2048,12 +2048,23 @@ async function handle(req) {
       if (req.method !== "POST") return json({ error: "POST only" }, 405);
       const input = req.body ?? {};
       const query = typeof input.query === "string" && input.query.trim() ? input.query.trim().slice(0, 400) : "what needs me today?";
-      return json(
-        await composeServer(
-          { query, connected: parseConnected(input.connected) },
-          readConnections(cookies)
-        )
+      const connections = readConnections(cookies);
+      const result = await composeServer(
+        { query, connected: parseConnected(input.connected) },
+        connections
       );
+      let moved = false;
+      const next = { ...connections };
+      for (const server of ["notion", "linear"]) {
+        const conn = connections[server];
+        if (!conn) continue;
+        const latest = currentRefreshToken(server, conn.refreshToken);
+        if (latest !== conn.refreshToken) {
+          next[server] = { ...conn, refreshToken: latest };
+          moved = true;
+        }
+      }
+      return moved ? { status: 200, body: result, cookies: [writeConnections(next, secure)] } : json(result);
     }
     case "/api/act": {
       if (req.method !== "POST") return json({ error: "POST only" }, 405);
@@ -2067,13 +2078,16 @@ async function handle(req) {
         })
       );
     }
+    /* Route names are flat on purpose. Vercel's catch-all function only matched
+       a single path segment, so /api/oauth/start never reached this handler at
+       all while /api/status did. */
     /* Start the connect flow. Registers a client on the fly, because both these
        servers support Dynamic Client Registration, then sends the visitor off to
        consent with the PKCE verifier parked in a short lived cookie. */
-    case "/api/oauth/start": {
+    case "/api/oauth-start": {
       const server = req.query.server;
       if (!OAUTH_SERVERS.has(server)) return json({ error: "unknown server" }, 400);
-      const redirectUri = `${req.origin}/api/oauth/callback`;
+      const redirectUri = `${req.origin}/api/oauth-callback`;
       const client = await registerClient(server, redirectUri);
       const verifier = randomBytes2(32).toString("base64url");
       const challenge = createHash2("sha256").update(verifier).digest("base64url");
@@ -2102,7 +2116,7 @@ async function handle(req) {
         ]
       };
     }
-    case "/api/oauth/callback": {
+    case "/api/oauth-callback": {
       const pending = readPending(cookies);
       const fail = (why) => ({
         status: 302,
@@ -2134,7 +2148,7 @@ async function handle(req) {
     }
     /* Forgets this visitor's account. It does not revoke the grant upstream,
        so the wording in the UI says "disconnect" rather than anything stronger. */
-    case "/api/oauth/disconnect": {
+    case "/api/oauth-disconnect": {
       const server = req.query.server;
       if (!OAUTH_SERVERS.has(server)) return json({ error: "unknown server" }, 400);
       const next = { ...readConnections(cookies) };

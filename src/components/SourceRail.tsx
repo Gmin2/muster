@@ -239,7 +239,7 @@ export function SourceRail({
             own[id] ? (
               <a
                 key={id}
-                href={`/api/oauth/disconnect?server=${id}`}
+                href={`/api/oauth-disconnect?server=${id}`}
                 className="rounded-full bg-[var(--accent-tint)] px-2 py-0.5 text-[11px] font-medium text-[var(--accent-ink)] transition-opacity hover:opacity-75"
                 title={`Stop using your own ${id} account`}
               >
@@ -248,7 +248,7 @@ export function SourceRail({
             ) : (
               <a
                 key={id}
-                href={`/api/oauth/start?server=${id}`}
+                href={`/api/oauth-start?server=${id}`}
                 className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[11px] font-medium text-[var(--ink-2)] shadow-[var(--shadow-btn)] transition-colors hover:bg-[var(--hover)] hover:text-[var(--ink)]"
                 title={`Sign in and use your own ${id} workspace`}
               >

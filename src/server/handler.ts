@@ -7,6 +7,7 @@ import { configReport } from "./providers";
 import {
   authorizeUrl,
   connectionFromEnv,
+  currentRefreshToken,
   exchangeCode,
   registerClient,
   type OAuthServer,
@@ -93,12 +94,31 @@ export async function handle(req: HttpRequest): Promise<HttpResponse> {
           ? input.query.trim().slice(0, 400)
           : "what needs me today?";
 
-      return json(
-        await composeServer(
-          { query, connected: parseConnected(input.connected) },
-          readConnections(cookies),
-        ),
+      const connections = readConnections(cookies);
+      const result = await composeServer(
+        { query, connected: parseConnected(input.connected) },
+        connections,
       );
+
+      /* Notion and Linear rotate their refresh tokens, and a serverless instance
+         forgets the new one the moment it goes cold. Writing it back into the
+         visitor's cookie is what makes a connected account survive past the
+         first hour, since the cookie is the only durable store we have. */
+      let moved = false;
+      const next = { ...connections };
+      for (const server of ["notion", "linear"] as const) {
+        const conn = connections[server];
+        if (!conn) continue;
+        const latest = currentRefreshToken(server, conn.refreshToken);
+        if (latest !== conn.refreshToken) {
+          next[server] = { ...conn, refreshToken: latest };
+          moved = true;
+        }
+      }
+
+      return moved
+        ? { status: 200, body: result, cookies: [writeConnections(next, secure)] }
+        : json(result);
     }
 
     case "/api/act": {
@@ -114,14 +134,18 @@ export async function handle(req: HttpRequest): Promise<HttpResponse> {
       );
     }
 
+    /* Route names are flat on purpose. Vercel's catch-all function only matched
+       a single path segment, so /api/oauth/start never reached this handler at
+       all while /api/status did. */
+
     /* Start the connect flow. Registers a client on the fly, because both these
        servers support Dynamic Client Registration, then sends the visitor off to
        consent with the PKCE verifier parked in a short lived cookie. */
-    case "/api/oauth/start": {
+    case "/api/oauth-start": {
       const server = req.query.server;
       if (!OAUTH_SERVERS.has(server)) return json({ error: "unknown server" }, 400);
 
-      const redirectUri = `${req.origin}/api/oauth/callback`;
+      const redirectUri = `${req.origin}/api/oauth-callback`;
       const client = await registerClient(server as OAuthServer, redirectUri);
 
       const verifier = randomBytes(32).toString("base64url");
@@ -153,7 +177,7 @@ export async function handle(req: HttpRequest): Promise<HttpResponse> {
       };
     }
 
-    case "/api/oauth/callback": {
+    case "/api/oauth-callback": {
       const pending = readPending(cookies);
       const fail = (why: string): HttpResponse => ({
         status: 302,
@@ -190,7 +214,7 @@ export async function handle(req: HttpRequest): Promise<HttpResponse> {
 
     /* Forgets this visitor's account. It does not revoke the grant upstream,
        so the wording in the UI says "disconnect" rather than anything stronger. */
-    case "/api/oauth/disconnect": {
+    case "/api/oauth-disconnect": {
       const server = req.query.server;
       if (!OAUTH_SERVERS.has(server)) return json({ error: "unknown server" }, 400);
       const next = { ...readConnections(cookies) };
