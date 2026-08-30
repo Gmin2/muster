@@ -16,6 +16,16 @@ import type { Connection } from "./mcp-oauth";
 const SECRET = process.env.SESSION_SECRET ?? "muster-dev-secret-not-for-production";
 const KEY = createHash("sha256").update(SECRET).digest();
 
+/* The development fallback is in a public repo, so on a real deployment it is a
+   key everyone already has. Say so loudly rather than quietly encrypting
+   visitors' refresh tokens with a published secret. */
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+  console.warn(
+    "[muster] SESSION_SECRET is not set. Visitor connection cookies are being " +
+      "encrypted with the public development key. Set it: openssl rand -base64 32",
+  );
+}
+
 export const CONNECTIONS_COOKIE = "muster_conn";
 export const PENDING_COOKIE = "muster_oauth";
 
