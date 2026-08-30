@@ -23,11 +23,29 @@ function ageDays(iso: string): number {
 
 const GH_CI_LOOKUPS = 6;
 
-function ghRepos(): [string, string][] {
-  return (env("GITHUB_REPOS") ?? "")
+function parseSlugs(raw: string): [string, string][] {
+  return raw
     .split(",")
     .map((slug) => slug.trim().split("/"))
     .filter((p): p is [string, string] => p.length === 2 && !!p[0] && !!p[1]);
+}
+
+/* Repositories come from the question when it names any, and fall back to the
+   env default otherwise. That is what lets a visitor point the dashboard at a
+   repo the owner never configured. */
+let requestRepos: string[] | null = null;
+
+export function setRequestRepos(repos: string[] | null): void {
+  requestRepos = repos && repos.length > 0 ? repos : null;
+}
+
+function ghRepos(): [string, string][] {
+  if (requestRepos) return parseSlugs(requestRepos.join(","));
+  return parseSlugs(env("GITHUB_REPOS") ?? "");
+}
+
+export function activeRepos(): string[] {
+  return ghRepos().map(([o, r]) => `${o}/${r}`);
 }
 
 async function gh<T>(path: string, token: string): Promise<T> {
@@ -563,9 +581,11 @@ type CacheEntry = { at: number; items: SourceItem[]; state: SourceState };
 const gatherCache = new Map<string, CacheEntry>();
 
 function cacheKey(id: SourceId, conns: Connections | undefined): string {
-  // A visitor with their own connection must never be served the owner's data.
+  // A visitor with their own connection must never be served the owner's data,
+  // and asking about a different repo must not hit the previous repo's entry.
   const own = conns?.[id as "notion" | "linear"]?.refreshToken;
-  return own ? `${id}:${own.slice(-16)}` : id;
+  const scope = id === "github" ? `:${activeRepos().join(",")}` : "";
+  return (own ? `${id}:${own.slice(-16)}` : id) + scope;
 }
 
 /** Per-visitor MCP connections, read off their cookie. */

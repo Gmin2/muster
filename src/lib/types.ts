@@ -73,6 +73,8 @@ export type ComposeResponse =
         model: string;
         droppedPanels: string[];
         sources: SourceState[];
+        /** which GitHub repos this layout was drawn from */
+        repos?: string[];
       };
     }
   | {

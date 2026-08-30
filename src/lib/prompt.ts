@@ -15,6 +15,8 @@ COMPOSITION RULES
 - Anything that writes must be an approval panel, optionally paired with diff.
 - Prefer structured panels. Use stream only when nothing else fits.
 - Do not invent data. Use only what is in the digest.
+- If the question named a repository, the digest is already scoped to it. Title
+  the layout after what is actually in there, not after the repository name.
 - Reply with ONE fenced json block and nothing else.
 
 OUTPUT SHAPE

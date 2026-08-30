@@ -325,6 +325,8 @@ COMPOSITION RULES
 - Anything that writes must be an approval panel, optionally paired with diff.
 - Prefer structured panels. Use stream only when nothing else fits.
 - Do not invent data. Use only what is in the digest.
+- If the question named a repository, the digest is already scoped to it. Title
+  the layout after what is actually in there, not after the repository name.
 - Reply with ONE fenced json block and nothing else.
 
 OUTPUT SHAPE
@@ -1347,8 +1349,19 @@ function ageDays2(iso) {
   return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5));
 }
 var GH_CI_LOOKUPS = 6;
+function parseSlugs(raw) {
+  return raw.split(",").map((slug) => slug.trim().split("/")).filter((p) => p.length === 2 && !!p[0] && !!p[1]);
+}
+var requestRepos = null;
+function setRequestRepos(repos) {
+  requestRepos = repos && repos.length > 0 ? repos : null;
+}
 function ghRepos() {
-  return (env3("GITHUB_REPOS") ?? "").split(",").map((slug) => slug.trim().split("/")).filter((p) => p.length === 2 && !!p[0] && !!p[1]);
+  if (requestRepos) return parseSlugs(requestRepos.join(","));
+  return parseSlugs(env3("GITHUB_REPOS") ?? "");
+}
+function activeRepos() {
+  return ghRepos().map(([o, r]) => `${o}/${r}`);
 }
 async function gh(path, token) {
   const res = await fetch(`https://api.github.com${path}`, {
@@ -1721,7 +1734,8 @@ var CACHE_MS = 6e4;
 var gatherCache = /* @__PURE__ */ new Map();
 function cacheKey(id, conns) {
   const own = conns?.[id]?.refreshToken;
-  return own ? `${id}:${own.slice(-16)}` : id;
+  const scope = id === "github" ? `:${activeRepos().join(",")}` : "";
+  return (own ? `${id}:${own.slice(-16)}` : id) + scope;
 }
 function configReport() {
   const repos = ghRepos();
@@ -1795,6 +1809,53 @@ async function gatherServer(ids, limit = 20, connections) {
   };
 }
 
+// src/lib/repos.ts
+var NOT_REPOS = /* @__PURE__ */ new Set([
+  "and",
+  "or",
+  "a",
+  "an",
+  "the",
+  "him",
+  "her",
+  "and/or",
+  "input",
+  "output",
+  "yes",
+  "no",
+  "on",
+  "off",
+  "read",
+  "write",
+  "n",
+  "y",
+  "s",
+  "km",
+  "am",
+  "pm"
+]);
+var URL_PATTERN = /(?:https?:\/\/)?(?:www\.)?github\.com\/([A-Za-z0-9][\w.-]{0,38})\/([A-Za-z0-9][\w.-]{0,99})[^\s]*/g;
+var REPO_PATTERN = /\b([A-Za-z0-9][\w.-]{0,38})\/([A-Za-z0-9][\w.-]{0,99})\b/g;
+function parseRepos(query) {
+  const found = [];
+  let rest = query;
+  for (const match of query.matchAll(URL_PATTERN)) {
+    const slug = `${match[1]}/${match[2].replace(/[.,;:!?)\]]+$/, "")}`;
+    if (!found.includes(slug)) found.push(slug);
+    rest = rest.replace(match[0], " ");
+  }
+  for (const match of rest.matchAll(REPO_PATTERN)) {
+    const owner = match[1];
+    const name = match[2].replace(/[.,;:!?)\]]+$/, "").split("/")[0];
+    if (!owner || !name) continue;
+    if (NOT_REPOS.has(owner.toLowerCase()) || NOT_REPOS.has(name.toLowerCase())) continue;
+    if (/^\d+$/.test(owner) && /^\d+$/.test(name)) continue;
+    const slug = `${owner}/${name}`;
+    if (!found.includes(slug)) found.push(slug);
+  }
+  return found.slice(0, 3);
+}
+
 // src/server/compose.ts
 var env4 = (key) => {
   const v = process.env[key];
@@ -1855,6 +1916,8 @@ async function completeLayout(system, user) {
 }
 async function composeServer(req, connections) {
   const start = Date.now();
+  setRequestRepos(parseRepos(req.query));
+  const repos = activeRepos();
   const { items, states } = await gatherServer(req.connected, 20, connections);
   try {
     const raw = await completeLayout(
@@ -1865,7 +1928,13 @@ async function composeServer(req, connections) {
     return {
       ok: true,
       layout,
-      meta: { ms: Date.now() - start, model: MODEL(), droppedPanels: dropped, sources: states }
+      meta: {
+        ms: Date.now() - start,
+        model: MODEL(),
+        droppedPanels: dropped,
+        sources: states,
+        repos
+      }
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);

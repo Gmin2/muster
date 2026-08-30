@@ -4,7 +4,8 @@ import { catalogForPrompt } from "../lib/catalog-meta";
 import { systemPrompt, userPrompt } from "../lib/prompt";
 import { validateLayout } from "../lib/schema";
 import { fallbackLayout } from "../lib/fallback";
-import { gatherServer, type Connections } from "./providers";
+import { gatherServer, setRequestRepos, activeRepos, type Connections } from "./providers";
+import { parseRepos } from "../lib/repos";
 
 /* The whole pipeline runs here rather than in the browser, so the model key and
    every source token stay server side. Anything past the gather that throws
@@ -93,6 +94,12 @@ export async function composeServer(
   connections?: Connections,
 ): Promise<ComposeResponse> {
   const start = Date.now();
+
+  /* A repo named in the question wins over the configured default, so the
+     dashboard is not permanently pinned to whatever the deployer set. */
+  setRequestRepos(parseRepos(req.query));
+  const repos = activeRepos();
+
   const { items, states } = await gatherServer(req.connected, 20, connections);
 
   try {
@@ -106,7 +113,13 @@ export async function composeServer(
     return {
       ok: true,
       layout,
-      meta: { ms: Date.now() - start, model: MODEL(), droppedPanels: dropped, sources: states },
+      meta: {
+        ms: Date.now() - start,
+        model: MODEL(),
+        droppedPanels: dropped,
+        sources: states,
+        repos,
+      },
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);

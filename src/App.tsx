@@ -16,11 +16,13 @@ import type {
 
 const OPENING_QUERY = "what needs me today?";
 
+/* The third one is doing real work: it teaches, in one glance, that you can
+   name any repository in the question and the dashboard will go and read it. */
 const SUGGESTIONS = [
   "what needs me today?",
   "which pull requests are going stale?",
+  "what is happening in vercel/next.js?",
   "what is blocked across engineering?",
-  "prep me for my next meeting",
 ];
 
 const INITIAL_SOURCES: SourceState[] = SOURCE_IDS.map((id) => ({
@@ -43,6 +45,7 @@ export default function App() {
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
   const [model, setModel] = useState("connecting");
   const [own, setOwn] = useState<Partial<Record<"notion" | "linear", boolean>>>({});
+  const [repos, setRepos] = useState<string[]>([]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -80,6 +83,7 @@ export default function App() {
     if (res.ok) {
       setSources(res.meta.sources);
       setMs(res.meta.ms);
+      setRepos(res.meta.repos ?? []);
       setStatus("ready");
       const dropped = res.meta.droppedPanels.length;
       setNote(
@@ -185,6 +189,8 @@ export default function App() {
               </span>
             </div>
             <span className="shrink-0 font-mono text-[11px] text-[var(--ink-3)]">
+              {repos.length > 0 ? repos.join("  ") : null}
+              {repos.length > 0 && "  ·  "}
               {focus ? `scoped to ${focus}` : `${activeSources} of ${sources.length} servers`}
             </span>
           </div>

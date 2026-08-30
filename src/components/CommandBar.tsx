@@ -60,7 +60,7 @@ export function CommandBar({
           value={value}
           disabled={busy}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Ask what needs you today…"
+          placeholder="Ask what needs you today, or name any repo…"
           aria-label="Compose a layout"
           className="min-w-0 flex-1 bg-transparent text-[13.5px] text-[var(--ink)] outline-none placeholder:text-[var(--ink-3)] disabled:opacity-60"
         />
