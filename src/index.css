@@ -1,0 +1,360 @@
+@import "tailwindcss";
+@import "./site-classes.css";
+
+@font-face {
+  font-family: InterVariable;
+  src: url(/fonts/InterVariable.woff2) format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Light is the default theme: the site puts no class on <html> for light and
+ * adds `dark` for dark. So @theme carries the light palette and .dark overrides
+ * it. Tailwind emits colour utilities as var(--color-x), so overriding the
+ * variable under .dark is enough for every colour utility. */
+
+@theme {
+  --font-sans: InterVariable, Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-page: oklch(98.5% 0.001 286.376);
+  --color-canvas: oklch(96.1% 0.002 247.84);
+  --color-surface: oklch(100% 0 0);
+  --color-inset: oklch(97.9% 0.002 247.839);
+  --color-field: oklch(96.1% 0.001 286.375);
+  --color-hover: oklch(97% 0.002 247.839);
+  --color-hover-2: oklch(93.3% 0.003 247.86);
+  --color-line: oklch(94.6% 0.003 264.542);
+  --color-line-soft: oklch(96.6% 0.002 264.542);
+  --color-line-strong: oklch(91.2% 0.005 258.326);
+
+  --color-ink: oklch(24.7% 0.006 258.361);
+  --color-ink-2: oklch(50.6% 0.01 264.477);
+  --color-ink-3: oklch(69.5% 0.009 264.505);
+
+  --color-accent: oklch(62.6% 0.205 254.947);
+  --color-accent-ink: oklch(55.6% 0.187 255.617);
+  --color-accent-tint: oklch(96% 0.019 252.878);
+  --color-green: oklch(60.3% 0.155 150.883);
+  --color-green-tint: oklch(95.8% 0.017 159.118);
+  --color-orange: oklch(68.9% 0.179 49.902);
+  --color-orange-tint: oklch(96.4% 0.021 67.581);
+  --color-red: oklch(62.1% 0.192 23.042);
+  --color-red-tint: oklch(95.6% 0.017 17.462);
+
+  --text-10: 10px;
+  --text-11: 11px;
+  --text-115: 11.5px;
+  --text-12: 12px;
+  --text-125: 12.5px;
+  --text-13: 13px;
+  --text-14: 14px;
+  --text-15: 15px;
+  --text-18: 18px;
+  --text-19: 19px;
+  --text-21: 21px;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-xl: 0.75rem;
+  --radius-chip: 6px;
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-window: 14px;
+
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-link: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Bare aliases: the primitives reference var(--ink-3), var(--green) and friends
+ * directly in inline styles. They resolve through the --color-* vars, so they
+ * follow the theme automatically. */
+:root {
+  --page: var(--color-page);
+  --canvas: var(--color-canvas);
+  --surface: var(--color-surface);
+  --inset: var(--color-inset);
+  --field: var(--color-field);
+  --hover: var(--color-hover);
+  --hover-2: var(--color-hover-2);
+  --line: var(--color-line);
+  --line-soft: var(--color-line-soft);
+  --line-strong: var(--color-line-strong);
+  --ink: var(--color-ink);
+  --ink-2: var(--color-ink-2);
+  --ink-3: var(--color-ink-3);
+  --accent: var(--color-accent);
+  --accent-ink: var(--color-accent-ink);
+  --accent-tint: var(--color-accent-tint);
+  --green: var(--color-green);
+  --green-tint: var(--color-green-tint);
+  --orange: var(--color-orange);
+  --orange-tint: var(--color-orange-tint);
+  --red: var(--color-red);
+  --red-tint: var(--color-red-tint);
+  --grid-line: color-mix(in srgb, var(--line) 78%, transparent);
+
+  /* light */
+  --stripe-bg: oklch(97% 0 0);
+  --stripe: oklch(40.5% 0 0 / 0.075);
+  --smooth-ring-color: #0000000d;
+  --smooth-ring-width: 1px;
+
+  --tooltip-bg: oklch(27.2% 0.008 264.435);
+  --tooltip-fg: oklch(97.6% 0.002 247.839);
+  --tooltip-muted: oklch(73.1% 0.008 260.731);
+  --tooltip-border: oklch(35.6% 0.007 264.474);
+
+  /* Tailwind inlines --shadow-* from @theme into the utility, so these are kept
+   * as plain properties and paired with the @utility rules below. That is what
+   * makes the shadows switch with the theme. */
+  --shadow-hairline: 0 0 0 1px oklch(94.6% 0.003 264.542);
+  --shadow-btn: 0 0 0 1px oklch(91.2% 0.005 258.326), 0 0 4px 0 #0000000a;
+  --shadow-card: 0 0 0 1px oklch(94.6% 0.003 264.542), 0 18px 47px 0 #00000008,
+    0 7.5px 19px 0 #00000005, 0 4px 10.5px 0 #00000005, 0 2.3px 5.8px 0 #00000003,
+    0 1.2px 3.1px 0 #00000003, 0 0.5px 1.3px 0 #00000003;
+  --shadow-raised: 0 0 0 1px oklch(94.6% 0.003 264.542), 0 17.54px 23.39px 0 #0000000a,
+    0 9.4px 12.5px 0 #00000008, 0 5.25px 7px 0 #00000005,
+    0 2.79px 3.72px -2px #00000003, 0 1.16px 1.5px 0 #00000003;
+  --shadow-overlay: 0 0 0 1px oklch(94.6% 0.003 264.542), 0 25px 50px 0 #0000000d,
+    0 12px 24px 0 #0000000a, 0 6px 12px 0 #00000008, 0 3px 6px 0 #00000005,
+    0 1.5px 3px 0 #00000005;
+  --shadow-inset-field: inset 0 1px 2px oklch(0% 0 0 / 0.12);
+}
+
+.dark {
+  --color-page: oklch(20.9% 0.004 264.477);
+  --color-canvas: oklch(23.1% 0.004 264.487);
+  --color-surface: oklch(26% 0.006 271.191);
+  --color-inset: oklch(24.3% 0.004 264.492);
+  --color-field: oklch(29.3% 0.006 271.223);
+  --color-hover: oklch(28.9% 0.006 271.22);
+  --color-hover-2: oklch(31.8% 0.007 274.747);
+  --color-line: oklch(30.8% 0.006 258.354);
+  --color-line-soft: oklch(27.8% 0.006 258.354);
+  --color-line-strong: oklch(35.6% 0.007 264.474);
+
+  --color-ink: oklch(96.4% 0.002 247.839);
+  --color-ink-2: oklch(73.1% 0.008 260.731);
+  --color-ink-3: oklch(54.1% 0.01 264.484);
+
+  --color-accent: oklch(68% 0.173 253.301);
+  --color-accent-ink: oklch(78.8% 0.113 248.33);
+  --color-accent-tint: oklch(68% 0.173 253.301 / 0.16);
+  --color-green: oklch(70.5% 0.154 153.814);
+  --color-green-tint: oklch(70.5% 0.154 153.814 / 0.14);
+  --color-orange: oklch(74.6% 0.156 55.642);
+  --color-orange-tint: oklch(74.6% 0.156 55.642 / 0.14);
+  --color-red: oklch(66.6% 0.18 21.433);
+  --color-red-tint: oklch(66.6% 0.18 21.433 / 0.14);
+
+  --stripe-bg: oklch(22.6% 0.004 264.485);
+  --stripe: oklch(100% 0 0 / 0.055);
+  --smooth-ring-color: #ffffff2e;
+
+  --tooltip-bg: oklch(18.2% 0.004 264.459);
+  --tooltip-fg: oklch(96.4% 0.002 247.839);
+  --tooltip-border: oklch(30.8% 0.006 258.354);
+
+  --shadow-hairline: 0 0 0 1px oklch(30.8% 0.006 258.354);
+  --shadow-btn: 0 0 0 1px oklch(100% 0 0 / 0.1), 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow-card: 0 0 0 1px oklch(100% 0 0 / 0.11), 0 1px 2px oklch(0% 0 0 / 0.2),
+    0 2px 6px oklch(0% 0 0 / 0.2);
+  --shadow-raised: 0 0 0 1px oklch(100% 0 0 / 0.13), 0 2px 10px oklch(0% 0 0 / 0.22);
+  --shadow-overlay: 0 0 0 1px oklch(100% 0 0 / 0.15), 0 8px 28px oklch(0% 0 0 / 0.34);
+  --shadow-inset-field: inset 0 1px 2px oklch(0% 0 0 / 0.4);
+}
+
+@utility shadow-hairline {
+  box-shadow: var(--shadow-hairline);
+}
+@utility shadow-btn {
+  box-shadow: var(--shadow-btn);
+}
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-raised {
+  box-shadow: var(--shadow-raised);
+}
+@utility shadow-overlay {
+  box-shadow: var(--shadow-overlay);
+}
+@utility shadow-inset-field {
+  box-shadow: var(--shadow-inset-field);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--stripe-bg);
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent 0px,
+      transparent 7px,
+      var(--stripe) 7px,
+      var(--stripe) 8px
+    );
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    letter-spacing: -0.14px;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility primitive-card-pad {
+  padding: 12px;
+}
+@utility primitive-card-bar {
+  padding: 10px 12px;
+}
+@utility primitive-card-footer {
+  padding: 10px;
+}
+@utility primitive-table-cell {
+  padding: 10px 12px;
+}
+@utility primitive-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+}
+
+.component-nav-scroll {
+  scrollbar-width: none;
+}
+.component-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer-text {
+  0% { background-position: 150% center; }
+  100% { background-position: -50% center; }
+}
+@keyframes records-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+@keyframes caret-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes spin {
+  100% { transform: rotate(1turn); }
+}
+@keyframes pixel-on {
+  0%, 100% { opacity: 0.15; }
+  18%, 42% { opacity: 1; }
+  62% { opacity: 0.15; }
+}
+
+/* The gutter hatch: a 1px rule every 8px at -45 degrees over a slightly cooler
+   ground than the page. The body already carries it; this class is for the
+   region outside the shell column. */
+.hatch {
+  background-color: var(--stripe-bg);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent 7px,
+    var(--stripe) 7px,
+    var(--stripe) 8px
+  );
+}
+
+/* Rail collapse choreography, carried over from the drawn shell. Copy fades and
+   slides left while rows shrink to icon width, so the icons never move. */
+.sidebar-copy {
+  opacity: 1;
+  transform: translate(0);
+  transition:
+    opacity var(--sidebar-copy-duration) ease-out,
+    transform var(--sidebar-copy-duration) var(--sidebar-easing);
+}
+[data-sidebar-collapsed="true"] .sidebar-copy {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(calc(var(--sidebar-copy-offset) * -1));
+}
+
+.sidebar-row {
+  width: 208px;
+  transition-duration: var(--sidebar-copy-duration);
+  transition-timing-function: var(--sidebar-easing);
+}
+[data-sidebar-collapsed="true"] .sidebar-row {
+  width: 36px;
+}
+
+.sidebar-glide-highlight {
+  left: 8px;
+  right: 8px;
+}
+[data-sidebar-collapsed="true"] .sidebar-glide-highlight {
+  width: 36px;
+  right: auto;
+}
+
+.sidebar-collapse-control,
+.sidebar-expand-control,
+.sidebar-logo {
+  transition-duration: var(--sidebar-copy-duration);
+  transition-timing-function: ease-out;
+}
+[data-sidebar-collapsed="true"] .sidebar-collapse-control,
+[data-sidebar-collapsed="true"] .sidebar-logo {
+  pointer-events: none;
+  opacity: 0;
+}
+.sidebar-expand-control {
+  pointer-events: none;
+  opacity: 0;
+}
+[data-sidebar-collapsed="true"] .sidebar-expand-control {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [style*="fade-up"],
+  [style*="pixel-on"],
+  [style*="shimmer-text"] {
+    animation: none !important;
+  }
+}
