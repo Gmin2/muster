@@ -10,7 +10,6 @@ import {
   registerClient,
   type OAuthServer,
 } from "./mcp-oauth";
-import { installLocalPersistence } from "./persist";
 import {
   clearPending,
   parseCookies,
@@ -19,8 +18,6 @@ import {
   writeConnections,
   writePending,
 } from "./session";
-
-installLocalPersistence();
 
 /* One runtime-agnostic handler: a plain request in, a plain response out. The
    Vite dev middleware and the Vercel functions both wrap this, so there is
@@ -53,7 +50,21 @@ function parseConnected(raw: unknown): SourceId[] {
   return kept.length > 0 ? kept : [...SOURCE_IDS];
 }
 
+let persistenceReady = false;
+
 export async function handle(req: HttpRequest): Promise<HttpResponse> {
+  /* Lazily, and never at module load: a serverless cold start that throws while
+     evaluating imports fails with no usable error. */
+  if (!persistenceReady) {
+    persistenceReady = true;
+    try {
+      const { installLocalPersistence } = await import("./persist");
+      installLocalPersistence();
+    } catch {
+      // No filesystem here, which is expected on a serverless host.
+    }
+  }
+
   const cookies = parseCookies(req.cookieHeader);
   const secure = req.origin.startsWith("https://");
 

@@ -1,18 +1,17 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { handle } from "../src/server/handler";
 
-/* Every /api/* path goes through the same handler the dev server mounts, so
-   there is one implementation and production cannot drift from local.
+/* The handler is imported lazily, inside the request, on purpose.
 
-   Deliberately the Node signature rather than the Web Request/Response one:
-   that signature makes Vercel infer the Edge runtime, where node:fs and
-   node:crypto do not exist, and both are load bearing here. */
+   A static import runs the whole server module graph at cold start, and
+   anything that throws there fails the invocation before any of our code
+   runs, which Vercel reports only as FUNCTION_INVOCATION_FAILED with no
+   detail. Importing inside a try block means a load failure comes back as
+   readable JSON instead. */
 export const config = { runtime: "nodejs", maxDuration: 60 };
 
 type VercelRequest = IncomingMessage & { body?: unknown };
 
 async function readBody(req: VercelRequest): Promise<unknown> {
-  // Vercel usually parses JSON for us, but not for every content type.
   if (req.body !== undefined && req.body !== null) {
     if (typeof req.body === "string") {
       try {
@@ -23,7 +22,6 @@ async function readBody(req: VercelRequest): Promise<unknown> {
     }
     return req.body;
   }
-
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
   if (chunks.length === 0) return {};
@@ -34,8 +32,16 @@ async function readBody(req: VercelRequest): Promise<unknown> {
   }
 }
 
+function send(res: ServerResponse, status: number, body: unknown): void {
+  res.statusCode = status;
+  res.setHeader("Content-Type", "application/json");
+  res.end(JSON.stringify(body));
+}
+
 export default async function route(req: VercelRequest, res: ServerResponse): Promise<void> {
   try {
+    const { handle } = await import("../src/server/handler");
+
     const host = req.headers.host ?? "localhost";
     const proto = (req.headers["x-forwarded-proto"] as string | undefined) ?? "https";
     const url = new URL(req.url ?? "/", `${proto}://${host}`);
@@ -58,20 +64,17 @@ export default async function route(req: VercelRequest, res: ServerResponse): Pr
       return;
     }
 
-    res.statusCode = result.status;
-    res.setHeader("Content-Type", "application/json");
-    res.end(JSON.stringify(result.body));
+    send(res, result.status, result.body);
   } catch (err) {
-    // Never let the function itself 500: the client can render a fallback
-    // layout from any JSON body, but not from a Vercel error page.
-    console.error("[muster] handler threw:", err);
-    res.statusCode = 200;
-    res.setHeader("Content-Type", "application/json");
-    res.end(
-      JSON.stringify({
-        error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack?.split("\n").slice(0, 4) : undefined,
-      }),
-    );
+    /* 200 rather than 500: the client can render a fallback layout from any
+       JSON body, but not from a Vercel error page, and the message is the only
+       way to see what went wrong without dashboard access. */
+    console.error("[muster] function failed:", err);
+    send(res, 200, {
+      error: err instanceof Error ? err.message : String(err),
+      where: "api/[...route]",
+      node: process.version,
+      stack: err instanceof Error ? err.stack?.split("\n").slice(0, 6) : undefined,
+    });
   }
 }
