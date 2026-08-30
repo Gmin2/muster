@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { randomBytes } from "node:crypto";
 import { exec } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { writeEnv } from "./env-write.mjs";
 
 const PORT = 5273;
 const REDIRECT = `http://localhost:${PORT}/callback`;
@@ -116,9 +117,10 @@ const server = createServer(async (req, res) => {
     process.exit(1);
   }
 
-  finish("Done. Copy the refresh token from your terminal into .env, then close this tab.");
-  console.log("\nAdd this line to .env:\n");
-  console.log(`GOOGLE_REFRESH_TOKEN=${token.refresh_token}\n`);
+  finish("Connected. You can close this tab, it is already saved.");
+  writeEnv({ GOOGLE_REFRESH_TOKEN: token.refresh_token });
+  console.log("\nWrote GOOGLE_REFRESH_TOKEN to .env");
+  console.log("(value not shown on purpose, it is a live credential)\n");
   server.close();
   process.exit(0);
 });

@@ -16,6 +16,7 @@
 import { createServer } from "node:http";
 import { randomBytes, createHash } from "node:crypto";
 import { exec } from "node:child_process";
+import { writeEnv } from "./env-write.mjs";
 
 const SERVERS = {
   notion: { base: "https://mcp.notion.com", scope: "default" },
@@ -114,13 +115,18 @@ const server = createServer(async (req, res) => {
     process.exit(1);
   }
 
-  done("Done. Copy the lines from your terminal into .env, then close this tab.");
+  done("Connected. You can close this tab, it is already saved.");
 
   const U = name.toUpperCase();
-  console.log("\nAdd these to .env:\n");
-  console.log(`${U}_MCP_CLIENT_ID=${reg.client_id}`);
-  if (reg.client_secret) console.log(`${U}_MCP_CLIENT_SECRET=${reg.client_secret}`);
-  console.log(`${U}_MCP_REFRESH_TOKEN=${token.refresh_token}\n`);
+  const written = writeEnv({
+    [`${U}_MCP_CLIENT_ID`]: reg.client_id,
+    [`${U}_MCP_CLIENT_SECRET`]: reg.client_secret,
+    [`${U}_MCP_REFRESH_TOKEN`]: token.refresh_token,
+  });
+  console.log(`\nWrote to .env: ${written.join(", ")}`);
+  console.log("(values not shown on purpose, they are live credentials)\n");
+  console.log("For Vercel, copy them out of .env with:");
+  console.log(`  grep '^${U}_MCP' .env\n`);
 
   // Discovery pass: shows exactly which tools this server exposes, which is
   // what the provider needs to resolve against.

@@ -108,9 +108,17 @@ demo, and the rail says which one actually ran.
 
 Notion and Linear refuse a static key on their MCP endpoints, but both advertise
 Dynamic Client Registration and the `refresh_token` grant. That combination is
-what makes them usable on a deployed demo: `scripts/mcp-auth.mjs` registers a
-client, runs the PKCE consent once, and prints a refresh token. No developer
-console, and no visitor ever meets a consent screen.
+what makes them usable on a deployed demo:
+
+```bash
+node scripts/mcp-auth.mjs notion
+node scripts/mcp-auth.mjs linear
+```
+
+Each registers a client on the fly, runs the PKCE consent once in your browser,
+and writes the credentials straight into `.env`. No developer console, nothing to
+copy by hand, and no visitor ever meets a consent screen. The scripts never print
+the tokens, only the list of tools the server turned out to expose.
 
 Gmail is the one that cannot work that way. Google will not let an unverified
 app with Gmail scopes serve arbitrary users, and verification takes days, so
