@@ -12,12 +12,22 @@ function looseEnum<T extends readonly [string, ...string[]]>(
   fallback: T[number],
 ) {
   return z.preprocess((raw) => {
-    if (typeof raw !== "string") return raw;
-    const key = raw.toLowerCase().replace(/[\s-]+/g, "_");
+    if (raw === undefined || raw === null) return fallback;
+    const key = String(raw).toLowerCase().replace(/[\s-]+/g, "_");
     if ((values as readonly string[]).includes(key)) return key;
-    return synonyms[key] ?? raw;
-  }, z.enum(values).default(fallback));
+    // An unrecognised value falls back rather than failing. These fields are
+    // cosmetic: the wrong tint on one row is a far smaller loss than dropping
+    // the entire panel, which is what strictness actually buys you here.
+    return synonyms[key] ?? fallback;
+  }, z.enum(values));
 }
+
+/* Models emit 3 where the schema says "3 files". A number is not a reason to
+   lose a panel either, so coerce anything scalar to its string form. */
+const looseString = z.preprocess(
+  (raw) => (typeof raw === "number" || typeof raw === "boolean" ? String(raw) : raw),
+  z.string(),
+);
 
 const FILTER_STATUS = looseEnum(["todo", "progress", "done"] as const, {
   in_progress: "progress",
@@ -68,6 +78,13 @@ const HEALTH = looseEnum(["good", "warn", "bad", "none"] as const, {
   blocked: "bad",
   unknown: "none",
   neutral: "none",
+  high: "bad",
+  urgent: "bad",
+  medium: "warn",
+  moderate: "warn",
+  low: "good",
+  normal: "good",
+  none: "none",
 }, "good");
 
 const TONE4 = looseEnum(["blue", "green", "orange", "red"] as const, {
@@ -96,7 +113,7 @@ export const RecordsPropsSchema = z.object({
         id: z.string(),
         title: z.string(),
         tags: z.array(z.string()).max(4).default([]),
-        updated: z.string(), // "3d" | "2h"
+        updated: looseString, // "3d" | "2h"
         health: HEALTH,
         url: z.string().optional(),
       })
@@ -111,7 +128,7 @@ export const FilterPropsSchema = z.object({
     .array(
       z.object({
         task: z.string(),
-        date: z.string(),
+        date: looseString,
         status: FILTER_STATUS,
         owner: z.string(),
       })
@@ -126,9 +143,9 @@ export const InsightsPropsSchema = z.object({
     .array(
       z.object({
         key: z.string(),
-        pill: z.string(), // e.g. "Last 7 days"
-        headline: z.string(), // e.g. "14 PRs merged"
-        prose: z.string(), // plain text summary
+        pill: looseString, // e.g. "Last 7 days"
+        headline: looseString, // e.g. "14 PRs merged"
+        prose: looseString, // plain text summary
         // One point is a degenerate sparkline, not a reason to lose the panel.
         series: z.array(z.number()).min(1).max(40),
       })
@@ -144,7 +161,7 @@ export const TasksPropsSchema = z.object({
       z.object({
         key: z.string(),
         label: z.string(),
-        amount: z.string(), // e.g. "3 files"
+        amount: looseString, // e.g. "3 files"
         status: TASK_STATUS,
         details: z
           .array(
@@ -256,7 +273,7 @@ export const ToolsPropsSchema = z.object({
       z.object({
         icon: TOOL_ICON,
         label: z.string(),
-        chip: z.string(),
+        chip: looseString,
         detail: z.array(z.string()).max(5).default([]),
       })
     )
