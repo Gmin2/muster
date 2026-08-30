@@ -4,3 +4,6 @@ dist
 .env.local
 tmp/
 *.tsbuildinfo
+
+# api/_server.js is generated but deliberately committed: Vercel may package
+# functions before the build script runs.
